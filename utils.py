@@ -71,6 +71,7 @@ def save_result(img, filename, bool, n):
 def preprocess(img, filename='', testMode = False):
     # median blur + morphing for noise
     tr_img = morph(cv2.medianBlur(img, 7), dil_iters=2, er_iters=1, size=3)
+    
     # Multiply, to make brighter spots a little brighter
     tr_img = cv2.multiply(tr_img, 1.13)
     save_result(tr_img, f'{filename}', testMode, 1)
@@ -88,3 +89,5 @@ def preprocess(img, filename='', testMode = False):
     tr_img = morph(tr_img, dil_iters=0, er_iters=2, size=3)
     save_result(tr_img, f'{filename}', testMode, 3)
     return tr_img
+
+

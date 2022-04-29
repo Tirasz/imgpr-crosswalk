@@ -1,5 +1,5 @@
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget, QWidget, QRadioButton, QComboBox, QSlider, QLabel, QLineEdit
+from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget, QWidget, QRadioButton, QComboBox, QSlider, QLabel, QLineEdit, QCheckBox
 from PyQt5.QtGui import QIntValidator,QDoubleValidator,QFont
 from utils import convert_cv_qt
 
@@ -62,7 +62,13 @@ class MyGUI:
         # Noise text input
         self.noise_amount = QLineEdit()
         self.noise_amount.setValidator(QDoubleValidator(0,1,2))
+        self.options_layout.addWidget(QLabel("Noise amount [0,00 - 1,00]: "))
         self.options_layout.addWidget(self.noise_amount)
+
+        # Test mode checkbox
+        self.test_mode_chb = QCheckBox("Save partial results")
+        self.test_mode_chb.setChecked(False)
+        self.options_layout.addWidget(self.test_mode_chb)
 
         # Image labels
         self.og_img_label = QLabel()
@@ -78,6 +84,10 @@ class MyGUI:
 
     def get_main(self):
         return self.window
+
+    def add_test_changed_handler(self, handler):
+        "handler(button)"
+        self.test_mode_chb.stateChanged.connect(lambda:handler(self.test_mode_chb))
 
     def add_ns_amount_handler(self, handler):
         "handler(text)"

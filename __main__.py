@@ -16,6 +16,7 @@ GUI = MyGUI(IMAGE_FILES)
 LAST_INDEX = 0
 SELECTED_NOISE = "No noise"
 NOISE_AMOUNT = 0
+TEST_MODE = False
 
 def update_image():
     global LAST_INDEX, GUI
@@ -33,7 +34,7 @@ def update_image():
     
     
 
-    tr_img = preprocess(og_img, filename=filename, testMode=True)
+    tr_img = preprocess(og_img, filename=filename, testMode=TEST_MODE)
     GUI.update_og_img(og_img)
     GUI.update_tr_img(tr_img)
 
@@ -52,18 +53,16 @@ def noise_select(b):
         update_image()
     
 
-def amount_select(sl):
-    global NOISE_AMOUNT
-    NOISE_AMOUNT = sl.value() / 100
-    print(f"NOISE AMOUNT: {NOISE_AMOUNT}")
-    update_image()
-
 def amount_select2(textbox):
     global NOISE_AMOUNT
     NOISE_AMOUNT = float(textbox.text().replace(',', '.'))
     print(f"NOISE AMOUNT: {NOISE_AMOUNT}")
     update_image()
 
+def test_mode_switch(button):
+    global TEST_MODE
+    TEST_MODE = button.isChecked()
+    update_image()
 
 if __name__ == "__main__":
     print(f" {len(IMAGE_FILES)} test images found.")
@@ -71,7 +70,7 @@ if __name__ == "__main__":
     GUI.get_main().show()
     GUI.add_img_cb_handler(img_select)
     GUI.add_ns_selected_handler(noise_select)
-    GUI.add_ns_slider_handler(amount_select)
+    GUI.add_test_changed_handler(test_mode_switch)
     GUI.add_ns_amount_handler(amount_select2)
 
 sys.exit(APP.exec_())
