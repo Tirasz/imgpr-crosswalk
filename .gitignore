@@ -1,2 +1,5 @@
 # Ignore pycache
 __pycache__
+
+#ignore results
+imgs/results

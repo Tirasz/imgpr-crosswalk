@@ -5,11 +5,11 @@ import sys
 import numpy as np
 from gui import MyGUI
 from PyQt5.QtWidgets import QApplication
-from utils import noisy, morph
+from utils import noisy, preprocess
 
 
-os.chdir(Path(__file__).parent.resolve())
-IMAGES_PATH = Path("./imgs")
+
+IMAGES_PATH = Path(__file__).parent / 'imgs'
 IMAGE_FILES =  tuple(Path(f) for f in IMAGES_PATH.glob('*.jpg'))
 APP = QApplication([])
 GUI = MyGUI(IMAGE_FILES)
@@ -20,6 +20,7 @@ NOISE_AMOUNT = 0
 def update_image():
     global LAST_INDEX, GUI
     selected_image = str(IMAGE_FILES[LAST_INDEX])
+    filename = IMAGE_FILES[LAST_INDEX].name
     img = cv2.cvtColor(cv2.imread(selected_image, cv2.IMREAD_COLOR), cv2.COLOR_BGR2GRAY)
 
     match SELECTED_NOISE:
@@ -29,16 +30,10 @@ def update_image():
             og_img = noisy('s&p', img, NOISE_AMOUNT)
         case _:
             og_img = img
-    # median blur + morphing for noise
-    tr_img = morph(cv2.medianBlur(og_img, 7), dil_iters=2, er_iters=1, size=3)
-    tr_img = cv2.multiply(tr_img, 1.2)
-    th_lower = 140
-    th_upper = 255
-    tr_img[tr_img > th_upper] = th_upper
-    tr_img[tr_img < th_lower] = th_lower
-    tr_img = cv2.normalize(tr_img, None, 0, 255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8UC1)
-    val, tr_img = cv2.threshold(tr_img, 100, 255, cv2.THRESH_BINARY)
-    tr_img = morph(tr_img, dil_iters=0, er_iters=2, size=3)
+    
+    
+
+    tr_img = preprocess(og_img, filename=filename, testMode=True)
     GUI.update_og_img(og_img)
     GUI.update_tr_img(tr_img)
 

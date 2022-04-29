@@ -18,7 +18,7 @@ class MyGUI:
             #print(f"SELECTED NOISE: {b.text()}")
 
     def __init__(self, IMAGE_FILES = []):
-        self.IMAGE_FILES = IMAGE_FILES
+        self.IMAGE_FILES = [x.name for x in IMAGE_FILES]
 
         self.window = QWidget()
         self.window.setWindowTitle('Crosswalk detection')
