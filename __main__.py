@@ -5,7 +5,7 @@ import sys
 import numpy as np
 from gui import MyGUI
 from PyQt5.QtWidgets import QApplication
-from utils import noisy, preprocess
+from utils import noisy, preprocess, detect_edges, line_something
 
 
 
@@ -31,10 +31,14 @@ def update_image():
             og_img = noisy('s&p', img, NOISE_AMOUNT)
         case _:
             og_img = img
-    
-    
 
     tr_img = preprocess(og_img, filename=filename, testMode=TEST_MODE)
+    tr_img = detect_edges(tr_img, filename=filename, testMode=TEST_MODE)
+    tr_img = line_something(tr_img, filename=filename, testMode=TEST_MODE)
+
+
+
+
     GUI.update_og_img(og_img)
     GUI.update_tr_img(tr_img)
 
@@ -62,6 +66,7 @@ def amount_select2(textbox):
 def test_mode_switch(button):
     global TEST_MODE
     TEST_MODE = button.isChecked()
+    print(f"TEST MODE: {button.isChecked()}")
     update_image()
 
 if __name__ == "__main__":
