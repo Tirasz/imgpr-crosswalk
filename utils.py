@@ -72,8 +72,7 @@ def preprocess(img, filename='', testMode = False):
     # median blur + morphing for noise
     tr_img = morph(cv2.medianBlur(img, 7), dil_iters=2, er_iters=1, size=3)
 
-    # Multiply, to make brighter spots a little brighter
-    tr_img = cv2.multiply(tr_img, 1.13)
+    
     save_result(tr_img, f'{filename}', testMode, 1)
 
     # Global treshold and then hist eq 
@@ -83,9 +82,14 @@ def preprocess(img, filename='', testMode = False):
     tr_img[tr_img < th_lower] = th_lower
     tr_img = cv2.normalize(tr_img, None, 0, 255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8UC1)
     save_result(tr_img, f'{filename}', testMode, 2)
+    # Multiply, to make brighter spots a little brighter
+    #tr_img = cv2.multiply(tr_img, 1.13)
+
+
     # Another treshold, and then morphing (0 dilations, 2 erosions)
-    val, tr_img = cv2.threshold(tr_img, 100, 255, cv2.THRESH_BINARY)
-    tr_img = morph(tr_img, dil_iters=0, er_iters=2, size=3)
+    tr_img = morph(tr_img, size=3)
+    val, tr_img = cv2.threshold(tr_img, 50, 255, cv2.THRESH_BINARY)
+    
     save_result(tr_img, f'{filename}', testMode, 3)
     return tr_img
 
