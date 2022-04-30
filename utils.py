@@ -69,6 +69,7 @@ def save_result(img, filename, bool, n):
         cv2.imwrite(str(path / f'{n}.jpg'), img)
 
 def preprocess(img, filename='', testMode = False):
+    save_result(img, f'{filename}', testMode, 0)
     # median blur + morphing for noise
     tr_img = morph(cv2.medianBlur(img, 7), dil_iters=2, er_iters=1, size=3)
 
