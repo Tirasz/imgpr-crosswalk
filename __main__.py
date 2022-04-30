@@ -36,11 +36,12 @@ def update_image():
     tr_img = detect_edges(tr_img, filename=filename, testMode=TEST_MODE)
     tr_img = line_something(tr_img, filename=filename, testMode=TEST_MODE)
 
+    asd = cv2.merge([og_img.copy(), og_img.copy(), cv2.add(og_img, tr_img)])
 
 
 
     GUI.update_og_img(og_img)
-    GUI.update_tr_img(tr_img)
+    GUI.update_tr_img(asd)
 
 def img_select(i):
     # called when select image cb changes

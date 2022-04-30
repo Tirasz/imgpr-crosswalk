@@ -121,19 +121,62 @@ def detect_edges(img, filename='', testMode = False):
 
 
 def line_something(img, filename='', testMode= False):
-    tr_img = img.copy()
-    cdstP = cv2.merge([img.copy(), img.copy(), img.copy()])
+    height, width = img.shape
+    
+    tr_img = cv2.GaussianBlur(img.copy(),(5,5),1)
+
+    #cv2.imshow("asd", tr_img)
+    cdstP = img.copy()
+    cdstP[:][:] = 0
     #lines = cv2.HoughLines(tr_img, 1, np.pi / 180, 130, None, 0,0)
-    lines =  cv2.HoughLinesP(tr_img, 1, (np.pi / 360), 50, None, 25, 20)
-    tr_img = cv2.merge([img.copy(), img.copy(), img.copy()])
+    lines =  cv2.HoughLinesP(tr_img, 2, (np.pi / 360), 50, None,130,10)
+    
     if lines is None:
         return
+    
     for i in range(0, len(lines)):
         l = lines[i][0]
-        cv2.line(cdstP, (l[0], l[1]), (l[2], l[3]), (0,0,255), 3, cv2.LINE_AA)
+        bot_left = bottom_left([(l[0], l[1]), (l[2], l[3])])
+        cv2.line(cdstP, (l[0], l[1]), (l[2], l[3]), (255,255,255),1, cv2.LINE_AA)
 
-    save_result(cdstP, f'{filename}', testMode, 5)
-    return cdstP
-def normalize_value(value, _min, _max):
+
+    cdstP = morph(cdstP, size=3, er_iters=1)
+    lines =  cv2.HoughLinesP(cdstP.copy(), 1, (np.pi / 360)*10, 50, None,150,0)
+    tr_img = cdstP.copy()
+    tr_img[:] = 0
+    for i in range(0, len(lines)):
+        l = lines[i][0]
+        bot_left = bottom_left([(l[0], l[1]), (l[2], l[3])])
+        cv2.line(tr_img, (l[0], l[1]), (l[2], l[3]), (255,255,255),1, cv2.LINE_AA)
     
+    save_result(tr_img, f'{filename}', testMode, 5)
+    
+    return tr_img
+
+
+
+def bottom_left(pts):
+    # initialzie a list of coordinates that will be ordered
+    # such that the first entry in the list is the top-left,
+    # the second entry is the top-right, the third is the
+    # bottom-right, and the fourth is the bottom-left
+    #rect = np.zeros((4, 2), dtype = "float32")
+
+    # the top-left point will have the smallest sum, whereas
+    # the bottom-right point will have the largest sum
+    #s = pts.sum(axis = 1)
+    #rect[0] = pts[np.argmin(s)]
+    #rect[2] = pts[np.argmax(s)]
+
+    # now, compute the difference between the points, the
+    # top-right point will have the smallest difference,
+    # whereas the bottom-left will have the largest difference
+    diff = np.diff(pts, axis = 1)
+    #rect[1] = pts[np.argmin(diff)]
+    #rect[3] = pts[np.argmax(diff)]
+
+    # return the ordered coordinates
+    return pts[np.argmax(diff)]
+
+def normalize_value(value, _min, _max):
     return (value - _min) / (_max - _min)
