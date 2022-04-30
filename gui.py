@@ -52,12 +52,12 @@ class MyGUI:
         # Noise slider
         self.noise_slider = QSlider(Qt.Horizontal)
         self.noise_slider.setMinimum(0)
-        self.noise_slider.setMaximum(100)
+        self.noise_slider.setMaximum(9)
         self.noise_slider.setValue(0)
         self.noise_slider.setTickPosition(QSlider.TicksBelow)
-        self.noise_slider.setTickInterval(5)
+        self.noise_slider.setTickInterval(1)
         self.noise_slider.valueChanged.connect(lambda:self.select_noise_amount(self.noise_slider))
-        #self.options_layout.addWidget(self.noise_slider)
+        self.options_layout.addWidget(self.noise_slider)
 
         # Noise text input
         self.noise_amount = QLineEdit()

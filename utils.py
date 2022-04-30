@@ -1,3 +1,4 @@
+from tokenize import group
 import cv2
 import numpy as np
 import random
@@ -124,26 +125,60 @@ def detect_edges(img, filename='', testMode = False):
 
     return edges
 
+def most_entries(db):
+    maxcount = max(len(v) for v in db.values())
+    return [k for k, v in db.items() if len(v) == maxcount]
 
-def line_something(img, filename='', testMode= False):
+def line_something(img, filename='', testMode= False, _test = 10):
     height, width = img.shape
-    
-    tr_img = cv2.GaussianBlur(img.copy(),(5,5),1)
+    thickness = int(width/150) if width > height else int(height/150)
+    print(thickness)
+    LINE_GROUP_RESOLUTION = 18 # 180 / LINE_GROUP_RES = VARIANCE IN CLASSIFYNG LINES BY THEIR ANGLES
+    MAX_DIFF = 180 / LINE_GROUP_RESOLUTION
+    from collections import defaultdict
+    groups = defaultdict(list) #{0:[],1:[],2:[],3:[],4:[],5:[],6:[],7:[],8:[],9:[]}
 
+    #tr_img = cv2.GaussianBlur(img.copy(),(5,5),1)
+    tr_img = img.copy()
     #cv2.imshow("asd", tr_img)
     cdstP = img.copy()
     cdstP[:][:] = 0
+    cdstP = cv2.cvtColor(cdstP, cv2.COLOR_GRAY2BGR)
     #lines = cv2.HoughLines(tr_img, 1, np.pi / 180, 130, None, 0,0)
-    lines =  cv2.HoughLinesP(tr_img, 2, (np.pi / 360), 50, None,130,10)
+    lines =  cv2.HoughLinesP(tr_img, 1, (np.pi / 360)/4, 50,None,thickness*5,10)
     
     if lines is None:
         return
-    
     for i in range(0, len(lines)):
         l = lines[i][0]
-        bot_left = bottom_left([(l[0], l[1]), (l[2], l[3])])
-        cv2.line(cdstP, (l[0], l[1]), (l[2], l[3]), (255,255,255),1, cv2.LINE_AA)
 
+        angle = angle_from_x_axis((l[0], l[1]), (l[2], l[3]))
+        group = int(math.floor(angle / MAX_DIFF)) if int(math.floor(angle / MAX_DIFF)) != LINE_GROUP_RESOLUTION -1 else 0
+        groups[group].append(l)
+        cv2.line(cdstP, (l[0], l[1]), (l[2], l[3]), (0,0,255),2, cv2.LINE_AA)
+
+        
+    groups[LINE_GROUP_RESOLUTION-1] = groups[0].copy()
+
+    mostKeys = most_entries(groups)[0]
+    
+    for l in groups[mostKeys]:
+        cv2.line(cdstP, (l[0], l[1]), (l[2], l[3]), (255,0,0),2, cv2.LINE_AA)
+        
+    
+    
+    #for l in groups[_test]:
+
+
+
+
+
+    
+    save_result(cdstP, f'{filename}', testMode, 5)
+    
+    return cdstP
+
+"""
 
     cdstP = morph(cdstP, size=3, er_iters=1)
     lines =  cv2.HoughLinesP(cdstP.copy(), 1, (np.pi / 360)*10, 50, None,150,0)
@@ -153,10 +188,17 @@ def line_something(img, filename='', testMode= False):
         l = lines[i][0]
         bot_left = bottom_left([(l[0], l[1]), (l[2], l[3])])
         cv2.line(tr_img, (l[0], l[1]), (l[2], l[3]), (255,255,255),1, cv2.LINE_AA)
+        #cv2.circle(tr_img, bot_left, 4, (255,0,0), -1)
+"""
+
+
     
-    save_result(tr_img, f'{filename}', testMode, 5)
+def angle_from_x_axis(p1, p2):
+    delta_x = p1[0] - p2[0]
+    delta_y = p1[1] - p2[1]
+    return (180 - (math.degrees(math.atan2(delta_y, delta_x))))%180
+
     
-    return tr_img
 
 
 

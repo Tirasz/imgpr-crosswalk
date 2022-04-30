@@ -17,12 +17,13 @@ LAST_INDEX = 0
 SELECTED_NOISE = "No noise"
 NOISE_AMOUNT = 0
 TEST_MODE = False
+TEST = 0
 
 def update_image():
-    global LAST_INDEX, GUI
+    global LAST_INDEX, GUI, TEST
     selected_image = str(IMAGE_FILES[LAST_INDEX])
     filename = IMAGE_FILES[LAST_INDEX].name
-    img = cv2.cvtColor(cv2.imread(selected_image, cv2.IMREAD_COLOR), cv2.COLOR_BGR2GRAY)
+    img = cv2.cvtColor(cv2.imread(selected_image, cv2.IMREAD_COLOR), cv2.COLOR_BGR2GRAY) 
 
     match SELECTED_NOISE:
         case 'Additive noise':
@@ -34,14 +35,15 @@ def update_image():
 
     tr_img = preprocess(og_img, filename=filename, testMode=TEST_MODE)
     tr_img = detect_edges(tr_img, filename=filename, testMode=TEST_MODE)
-    tr_img = line_something(tr_img, filename=filename, testMode=TEST_MODE)
+    tr_img = line_something(tr_img, filename=filename, testMode=TEST_MODE, _test = TEST)
+    #tr_img contains lines that are most likely crosswalk edges
 
-    asd = cv2.merge([og_img.copy(), og_img.copy(), cv2.add(og_img, tr_img)])
+    #asd = cv2.merge([og_img.copy(), og_img.copy(), cv2.add(og_img, tr_img)])
 
 
 
     GUI.update_og_img(og_img)
-    GUI.update_tr_img(asd)
+    GUI.update_tr_img(tr_img)
 
 def img_select(i):
     # called when select image cb changes
@@ -64,6 +66,12 @@ def amount_select2(textbox):
     print(f"NOISE AMOUNT: {NOISE_AMOUNT}")
     update_image()
 
+def amount_select(sl):
+    global TEST
+    TEST = sl.value()
+    print(f"AMOUNT: {TEST}")
+    update_image()
+
 def test_mode_switch(button):
     global TEST_MODE
     TEST_MODE = button.isChecked()
@@ -78,6 +86,6 @@ if __name__ == "__main__":
     GUI.add_ns_selected_handler(noise_select)
     GUI.add_test_changed_handler(test_mode_switch)
     GUI.add_ns_amount_handler(amount_select2)
-
+    GUI.add_ns_slider_handler(amount_select)
 sys.exit(APP.exec_())
     
