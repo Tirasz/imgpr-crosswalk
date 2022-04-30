@@ -185,3 +185,15 @@ def bottom_left(pts):
 
 def normalize_value(value, _min, _max):
     return (value - _min) / (_max - _min)
+
+
+def create_gamma_lut(gamma):
+    """Gamma paraméter értéknek megfelelő 256 elemű keresőtábla generálása.
+    A hatványozás miatt először [0, 1] tartományra kell konvertálni, majd utána vissza [0, 255] közé.
+    """
+    lut = np.arange(0, 256, 1, np.float32)
+    lut = lut / 255.0
+    lut = lut ** gamma
+    lut = np.uint8(lut * 255.0)
+
+    return lut
