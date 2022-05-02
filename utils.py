@@ -1,5 +1,7 @@
+from tkinter.filedialog import askdirectory
 from tokenize import group
 import cv2
+from cv2 import GaussianBlur
 import numpy as np
 import random
 from pathlib import Path
@@ -73,24 +75,27 @@ def preprocess(img, filename='', testMode = False):
     save_result(img, f'{filename}', testMode, 0)
     # median blur + morphing for noise
     tr_img = morph(cv2.medianBlur(img, 7), dil_iters=2, er_iters=1, size=3)
-
+    x,y = img.shape
     
     save_result(tr_img, f'{filename}', testMode, 1)
-
-    # Global treshold and then hist eq 
-    th_lower = 140
-    th_upper = 255
-    tr_img[tr_img > th_upper] = th_upper
-    tr_img[tr_img < th_lower] = th_lower
-    tr_img = cv2.normalize(tr_img, None, 0, 255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8UC1)
+    val, asd = cv2.threshold(tr_img, 50, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+    print(f"VAL: {val}")
+    #1. filter the white color
+    lower = np.array([int(val) + 25])
+    upper = np.array([255])
+    tr_img = cv2.inRange(img,lower,upper)
+    #tr_img = morph(cv2.medianBlur(tr_img, 7), dil_iters=2, er_iters=1, size=3)
     save_result(tr_img, f'{filename}', testMode, 2)
     # Multiply, to make brighter spots a little brighter
     #tr_img = cv2.multiply(tr_img, 1.13)
-
+     #2. erode the frame
+    erodeSize = int(y / 30)
+    erodeStructure = cv2.getStructuringElement(cv2.MORPH_RECT, (erodeSize,1))
+    erode = cv2.erode(tr_img, erodeStructure, (-1, -1))
 
     # Another treshold, and then morphing (0 dilations, 2 erosions)
-    tr_img = morph(tr_img, size=3)
-    val, tr_img = cv2.threshold(tr_img, 50, 255, cv2.THRESH_BINARY)
+    tr_img = morph(tr_img, size=3, dil_iters=1, er_iters=3)
+    #val, tr_img = cv2.threshold(tr_img, 50, 255, cv2.THRESH_BINARY)
     
     save_result(tr_img, f'{filename}', testMode, 3)
     return tr_img
@@ -102,7 +107,8 @@ def display_image(window, image):
     cv2.imshow(window, disp)
 
 def detect_edges(img, filename='', testMode = False):
-    blurred = cv2.GaussianBlur(img, (5, 5), 2.0)
+    morphed = morph(img)
+    blurred = cv2.GaussianBlur(morphed, (5, 5), 4.0)
     edges = cv2.Canny(blurred, 180, 190, None, 5, True)
     save_result(edges, f'{filename}', testMode, 4)
     
@@ -132,7 +138,7 @@ def most_entries(db):
 def line_something(img, filename='', testMode= False, _test = 10):
     height, width = img.shape
     thickness = int(width/150) if width > height else int(height/150)
-    print(thickness)
+    
     LINE_GROUP_RESOLUTION = 18 # 180 / LINE_GROUP_RES = VARIANCE IN CLASSIFYNG LINES BY THEIR ANGLES
     MAX_DIFF = 180 / LINE_GROUP_RESOLUTION
     from collections import defaultdict
@@ -145,7 +151,7 @@ def line_something(img, filename='', testMode= False, _test = 10):
     cdstP[:][:] = 0
     cdstP = cv2.cvtColor(cdstP, cv2.COLOR_GRAY2BGR)
     #lines = cv2.HoughLines(tr_img, 1, np.pi / 180, 130, None, 0,0)
-    lines =  cv2.HoughLinesP(tr_img, 1, (np.pi / 360)/4, 50,None,thickness*5,10)
+    lines =  cv2.HoughLinesP(tr_img, 1, (np.pi / 360), 50,None,thickness*5,10)
     
     if lines is None:
         return
@@ -155,7 +161,7 @@ def line_something(img, filename='', testMode= False, _test = 10):
         angle = angle_from_x_axis((l[0], l[1]), (l[2], l[3]))
         group = int(math.floor(angle / MAX_DIFF)) if int(math.floor(angle / MAX_DIFF)) != LINE_GROUP_RESOLUTION -1 else 0
         groups[group].append(l)
-        cv2.line(cdstP, (l[0], l[1]), (l[2], l[3]), (0,0,255),2, cv2.LINE_AA)
+        cv2.line(cdstP, (l[0], l[1]), (l[2], l[3]), (255,0,255),2, cv2.LINE_AA)
 
         
     groups[LINE_GROUP_RESOLUTION-1] = groups[0].copy()
@@ -163,7 +169,7 @@ def line_something(img, filename='', testMode= False, _test = 10):
     mostKeys = most_entries(groups)[0]
     
     for l in groups[mostKeys]:
-        cv2.line(cdstP, (l[0], l[1]), (l[2], l[3]), (255,0,0),2, cv2.LINE_AA)
+        cv2.line(cdstP, (l[0], l[1]), (l[2], l[3]), (255,255,0),2, cv2.LINE_AA)
         
     
     
@@ -177,6 +183,19 @@ def line_something(img, filename='', testMode= False, _test = 10):
     save_result(cdstP, f'{filename}', testMode, 5)
     
     return cdstP
+
+def group_lines_by_angle(lines, LINE_GROUP_RESOLUTION = 18):
+    MAX_DIFF = 180 / LINE_GROUP_RESOLUTION
+    from collections import defaultdict
+    groups = defaultdict(list)
+    for line in lines:
+        l = line[0]
+        angle = angle_from_x_axis((l[0], l[1]), (l[2], l[3]))
+        group = int(math.floor(angle / MAX_DIFF)) if int(math.floor(angle / MAX_DIFF)) != LINE_GROUP_RESOLUTION -1 else 0
+        groups[group].append(line)
+    # Last and first group (0 degrees and 180 degrees) are pretty much the same
+    return groups
+
 
 """
 
@@ -199,6 +218,98 @@ def angle_from_x_axis(p1, p2):
     return (180 - (math.degrees(math.atan2(delta_y, delta_x))))%180
 
     
+def contour_bounding(img, filename='', testMode = False):
+    height, width = img.shape
+    thickness = int(width/150) if width > height else int(height/150)
+    tr_img = img.copy()
+    x, y = tr_img.shape
+    
+    #erodeSize = int(y / 30)
+    #erodeStructure = cv2.getStructuringElement(cv2.MORPH_RECT, (erodeSize,1))
+    #tr_img = cv2.erode(tr_img, erodeStructure, (-1, -1))
+
+    #
+
+    asd = cv2.merge([tr_img.copy(), tr_img.copy(), tr_img.copy()])
+
+    # find contours 
+    contours, hierarchy = cv2.findContours(tr_img,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE )
+    tr_img = asd.copy()
+    tr_img[:][:][:] = 0 
+    bw_width = 170 
+ 
+    asd = cv2.drawContours(asd, contours, -1, (0,255,75), 2)
+    #save_result(asd, filename=filename, bool=testMode, n=4)
+    mask = asd.copy()
+    mask[:][:][:] = 0 
+
+    all_lines = []
+
+    for i in contours:
+        bx,by,bw,bh = cv2.boundingRect(i)
+        lines = get_lines_inside_bounding_box(bx,by,bw,bh, img) # THE MOST COMMON ANGLE
+        if lines is not None:
+            #TEST
+            if True:
+                cv2.rectangle(tr_img, (bx, by), (bx+bw, by+bh), (255,0,0), 3 )
+                cv2.rectangle(asd, (bx, by), (bx+bw, by+bh), (255,0,0), 3 )
+                cv2.rectangle(mask, (bx, by), (bx+bw, by+bh), (255,255,255), -1 )
+                for line in lines:
+                    all_lines.append(line)
+                    l = line[0]
+                    cv2.line(tr_img, (l[0] + bx, l[1]+by), (l[2]+bx, l[3]+by), (255,0,255),2, cv2.LINE_AA)
+
+    save_result(asd, filename=filename, bool=testMode, n=5)
+    #cv2.imshow("asd", asd)
+
+
+    
+
+    line_img = detect_edges(img.copy())
+    
+    lines =  cv2.HoughLinesP(line_img, 1, (np.pi / 360), 50,None,thickness*5,10)
+    line_img[:][:] = 0
+    line_img = cv2.cvtColor(line_img, cv2.COLOR_GRAY2BGR)
+    if lines is None:
+        return
+    for i in range(0, len(lines)):
+        l = lines[i][0]
+
+        #angle = angle_from_x_axis((l[0], l[1]), (l[2], l[3]))
+        #group = int(math.floor(angle / MAX_DIFF)) if int(math.floor(angle / MAX_DIFF)) != LINE_GROUP_RESOLUTION -1 else 0
+        #groups[group].append(l)
+        cv2.line(line_img, (l[0], l[1]), (l[2], l[3]), (0,0,255),2, cv2.LINE_AA)
+
+    shit = img.copy()
+    shit = cv2.addWeighted(line_img, 0.5, mask, 0.5, 0, shit)
+    #cv2.imshow("asdasd",shit)
+
+    return (tr_img, cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY))
+
+
+def get_lines_inside_bounding_box(bx, by, bw, bh, img):
+    w, h = img.shape
+    AMOUNT = 15
+    # increasing bounding box
+    bx = (bx - AMOUNT) if (bx - AMOUNT) > 0 else bx   
+    by = (by - AMOUNT) if (by - AMOUNT) > 0 else by
+    bh = (bh + AMOUNT) if (bh + AMOUNT + by) < h else bh
+    bw = (bw + AMOUNT) if (bw + AMOUNT + bx) < w else bw
+    diag_len = int(math.sqrt((bh**2 + bw**2)))
+
+    # making bounding box a separate img from original
+    bound_img = detect_edges(img[by:by+bh, bx:bx+bw])
+    #cv2.imshow("bound", bound_img)
+    lines_img = bound_img.copy()
+    lines_img[:] = 0
+    lines_img = cv2.cvtColor(lines_img, cv2.COLOR_GRAY2BGR)
+    # Getting lines
+    lines = cv2.HoughLinesP(bound_img, 1, (np.pi / 360), 50,None,int(diag_len/3),int(diag_len/3))
+    if lines is None:
+        return None
+    # ONLY RETURN THE LINES WHOSE ANGLES ARE THE MOST COMMON INSIDE THE BOUNDING BOX
+    groups = group_lines_by_angle(lines)
+    return groups[most_entries(groups)[0]]
 
 
 
@@ -227,6 +338,8 @@ def bottom_left(pts):
 
 def normalize_value(value, _min, _max):
     return (value - _min) / (_max - _min)
+
+
 
 
 def create_gamma_lut(gamma):

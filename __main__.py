@@ -1,3 +1,4 @@
+import gc
 from pathlib import Path
 import os
 import cv2
@@ -5,7 +6,7 @@ import sys
 import numpy as np
 from gui import MyGUI
 from PyQt5.QtWidgets import QApplication
-from utils import noisy, preprocess, detect_edges, line_something
+from utils import noisy, preprocess, detect_edges, line_something, create_gamma_lut, contour_bounding, morph
 
 
 
@@ -25,6 +26,7 @@ def update_image():
     filename = IMAGE_FILES[LAST_INDEX].name
     img = cv2.cvtColor(cv2.imread(selected_image, cv2.IMREAD_COLOR), cv2.COLOR_BGR2GRAY) 
 
+
     match SELECTED_NOISE:
         case 'Additive noise':
             og_img = noisy('gauss', img, NOISE_AMOUNT)
@@ -33,17 +35,39 @@ def update_image():
         case _:
             og_img = img
 
+    # Noise cancel and white threshold
     tr_img = preprocess(og_img, filename=filename, testMode=TEST_MODE)
-    tr_img = detect_edges(tr_img, filename=filename, testMode=TEST_MODE)
-    tr_img = line_something(tr_img, filename=filename, testMode=TEST_MODE, _test = TEST)
-    #tr_img contains lines that are most likely crosswalk edges
 
-    #asd = cv2.merge([og_img.copy(), og_img.copy(), cv2.add(og_img, tr_img)])
+    contur, mask = contour_bounding(tr_img, filename=filename, testMode=TEST_MODE)
+
+    #asd = detect_edges(tr_img, filename=filename, testMode=TEST_MODE)
+    #asd = line_something(asd, filename=filename, testMode=TEST_MODE, _test = TEST)
+
+    #asd2 = cv2.addWeighted(contur, 0.5, asd, 0.5, 0.0)
+    cv2.imshow("CONTUR", contur)
+    test = ~cv2.subtract(mask, og_img)
+    gc_img = cv2.imread(selected_image, cv2.IMREAD_COLOR)
+    #test2 = cv2.cvtColor(test, cv2.COLOR_GRAY2BGR)
+    #test2[:] = cv2.GC_PR_FGD
+    test2 = np.zeros(gc_img.shape[:2], dtype=np.uint8)
+    #test =
+    #test2[test > 125] = 255
+    #test2[test >= 250] = 0
+    
+
+    #test = morph(cv2.GaussianBlur(test, (7,7), 1))
+    #test = ~test
+    
+    bgdModel = np.zeros((1,65),np.float64)
+    fgdModel = np.zeros((1,65),np.float64)
+    #test2, bgdModel, fgdModel = cv2.grabCut(gc_img, test2, None, bgdModel, fgdModel, 3, cv2.GC_INIT_WITH_MASK)
 
 
-
+    #mask = np.where((test2==2)|(test2==0),0,1).astype('uint8')
+    #gc_img = gc_img*mask[:,:,np.newaxis]
+    
     GUI.update_og_img(og_img)
-    GUI.update_tr_img(tr_img)
+    GUI.update_tr_img(test)
 
 def img_select(i):
     # called when select image cb changes
