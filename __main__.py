@@ -3,11 +3,12 @@ from pathlib import Path
 import os
 import cv2
 import sys
+from cv2 import GC_BGD
 import numpy as np
 from gui import MyGUI
 from PyQt5.QtWidgets import QApplication
-from utils import noisy, preprocess, detect_edges, line_something, create_gamma_lut, contour_bounding, morph
-
+from utils import noisy, preprocess, detect_edges, line_something, create_gamma_lut, contour_bounding, morph, get_avg_GRAY_color, get_lines_inside_bounding_box, save_result
+from utils import contour_ransac
 
 
 IMAGES_PATH = Path(__file__).parent / 'imgs'
@@ -19,14 +20,18 @@ SELECTED_NOISE = "No noise"
 NOISE_AMOUNT = 0
 TEST_MODE = False
 TEST = 0
+SELECTED_METHOD = "My method"
+
 
 def update_image():
-    global LAST_INDEX, GUI, TEST
+    global LAST_INDEX, GUI, TEST, SELECTED_METHOD
     selected_image = str(IMAGE_FILES[LAST_INDEX])
     filename = IMAGE_FILES[LAST_INDEX].name
-    img = cv2.cvtColor(cv2.imread(selected_image, cv2.IMREAD_COLOR), cv2.COLOR_BGR2GRAY) 
+    img_BGR = cv2.imread(selected_image, cv2.IMREAD_COLOR)
+    img = cv2.cvtColor(img_BGR, cv2.COLOR_BGR2GRAY) 
 
-
+    
+   
     match SELECTED_NOISE:
         case 'Additive noise':
             og_img = noisy('gauss', img, NOISE_AMOUNT)
@@ -38,36 +43,51 @@ def update_image():
     # Noise cancel and white threshold
     tr_img = preprocess(og_img, filename=filename, testMode=TEST_MODE)
 
-    contur, mask = contour_bounding(tr_img, filename=filename, testMode=TEST_MODE)
+    match SELECTED_METHOD:
+        case 'My method':
+            mask = contour_bounding(tr_img, filename=filename, testMode=TEST_MODE)
+            mask[mask == 255] = cv2.GC_FGD
+            mask[mask == 125] = cv2.GC_BGD
+            mask[mask == 0] = cv2.GC_BGD
+        case '"Inspired method"':
+            try:
+                mask = contour_ransac(tr_img, filename=filename, testMode=TEST_MODE, testVal = TEST)
+                mask[mask == 255] = cv2.GC_FGD
+                mask[mask == 125] = cv2.GC_BGD
+                mask[mask == 0] = cv2.GC_BGD
+            except Exception:
+                GUI.update_og_img(og_img)
+                GUI.update_tr_img(img_BGR)
+                return
 
-    #asd = detect_edges(tr_img, filename=filename, testMode=TEST_MODE)
-    #asd = line_something(asd, filename=filename, testMode=TEST_MODE, _test = TEST)
 
-    #asd2 = cv2.addWeighted(contur, 0.5, asd, 0.5, 0.0)
-    cv2.imshow("CONTUR", contur)
-    test = ~cv2.subtract(mask, og_img)
-    gc_img = cv2.imread(selected_image, cv2.IMREAD_COLOR)
-    #test2 = cv2.cvtColor(test, cv2.COLOR_GRAY2BGR)
-    #test2[:] = cv2.GC_PR_FGD
-    test2 = np.zeros(gc_img.shape[:2], dtype=np.uint8)
-    #test =
-    #test2[test > 125] = 255
-    #test2[test >= 250] = 0
+    # 255 -> FGD
+    # 125 -> PR_BGD
+    # 0 -> BGD
+    
+    try:
+        temp = cv2.cvtColor(og_img, cv2.COLOR_BGR2RGB)
+        bgdModel = np.zeros((1,65),np.float64)
+        fgdModel = np.zeros((1,65),np.float64)
+        
+        cv2.grabCut(temp,mask,(0,0,0,0),bgdModel,fgdModel,5,cv2.GC_INIT_WITH_MASK)
+        
+
+        mask2 = np.where((mask == 1) + (mask == 3), 255, 0).astype('uint8')
+        gc_img = cv2.bitwise_and(temp, temp, mask=mask2)
+        #cv2.imshow("gc_img", gc_img)
+        gc_img[gc_img > 0] = 255
+        gc_img = cv2.cvtColor(gc_img, cv2.COLOR_RGB2GRAY)
+        
+        img_BGR[gc_img == 255] = (0,255,0)
+    except Exception:
+        pass
+
+    
     
 
-    #test = morph(cv2.GaussianBlur(test, (7,7), 1))
-    #test = ~test
-    
-    bgdModel = np.zeros((1,65),np.float64)
-    fgdModel = np.zeros((1,65),np.float64)
-    #test2, bgdModel, fgdModel = cv2.grabCut(gc_img, test2, None, bgdModel, fgdModel, 3, cv2.GC_INIT_WITH_MASK)
-
-
-    #mask = np.where((test2==2)|(test2==0),0,1).astype('uint8')
-    #gc_img = gc_img*mask[:,:,np.newaxis]
-    
     GUI.update_og_img(og_img)
-    GUI.update_tr_img(test)
+    GUI.update_tr_img(img_BGR)
 
 def img_select(i):
     # called when select image cb changes
@@ -102,6 +122,13 @@ def test_mode_switch(button):
     print(f"TEST MODE: {button.isChecked()}")
     update_image()
 
+def select_method(b):
+    global SELECTED_METHOD
+    if b.isChecked():
+        SELECTED_METHOD = b.text()
+        print(f"SELECTED METHOD: {SELECTED_METHOD}")
+        update_image()
+
 if __name__ == "__main__":
     print(f" {len(IMAGE_FILES)} test images found.")
     update_image()
@@ -111,5 +138,6 @@ if __name__ == "__main__":
     GUI.add_test_changed_handler(test_mode_switch)
     GUI.add_ns_amount_handler(amount_select2)
     GUI.add_ns_slider_handler(amount_select)
+    GUI.add_method_selected_handler(select_method)
 sys.exit(APP.exec_())
     

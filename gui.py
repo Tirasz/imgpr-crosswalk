@@ -1,5 +1,5 @@
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget, QWidget, QRadioButton, QComboBox, QSlider, QLabel, QLineEdit, QCheckBox
+from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget, QWidget, QRadioButton, QComboBox, QSlider, QLabel, QLineEdit, QCheckBox, QButtonGroup
 from PyQt5.QtGui import QIntValidator,QDoubleValidator,QFont
 from utils import convert_cv_qt
 
@@ -45,15 +45,27 @@ class MyGUI:
         self.ad_noise_rb.toggled.connect(lambda:self.select_noise(self.ad_noise_rb))
         self.sp_noise_rb = QRadioButton("Salt-pepper noise")
         self.sp_noise_rb.toggled.connect(lambda:self.select_noise(self.sp_noise_rb))
+        self.selected_noise = QButtonGroup()
+        self.selected_noise.addButton(self.no_noise_rb)
+        self.selected_noise.addButton(self.ad_noise_rb)
+        self.selected_noise.addButton(self.sp_noise_rb)
         self.options_layout.addWidget(self.no_noise_rb)
         self.options_layout.addWidget(self.ad_noise_rb)
         self.options_layout.addWidget(self.sp_noise_rb)
 
+        # SELECT METHOD RADIO BUTTONS
+        self.own_method_rb = QRadioButton("My method")
+        self.own_method_rb.setChecked(True)
+        self.own_method_rb.toggled.connect(lambda:self.select_noise(self.own_method_rb))
+        self.ins_method_rb = QRadioButton('"Inspired method"')
+        self.ins_method_rb.toggled.connect(lambda:self.select_noise(self.ins_method_rb))
+        
+
         # Noise slider
         self.noise_slider = QSlider(Qt.Horizontal)
-        self.noise_slider.setMinimum(0)
-        self.noise_slider.setMaximum(9)
-        self.noise_slider.setValue(0)
+        self.noise_slider.setMinimum(1)
+        self.noise_slider.setMaximum(100)
+        self.noise_slider.setValue(1)
         self.noise_slider.setTickPosition(QSlider.TicksBelow)
         self.noise_slider.setTickInterval(1)
         self.noise_slider.valueChanged.connect(lambda:self.select_noise_amount(self.noise_slider))
@@ -70,6 +82,9 @@ class MyGUI:
         self.test_mode_chb.setChecked(False)
         self.options_layout.addWidget(self.test_mode_chb)
 
+        # Adding method RB-s later
+        self.options_layout.addWidget(self.own_method_rb)
+        self.options_layout.addWidget(self.ins_method_rb)
         # Image labels
         self.og_img_label = QLabel()
         self.tr_img_label = QLabel()
@@ -84,6 +99,8 @@ class MyGUI:
 
     def get_main(self):
         return self.window
+
+
 
     def add_test_changed_handler(self, handler):
         "handler(button)"
@@ -102,6 +119,10 @@ class MyGUI:
         self.no_noise_rb.toggled.connect(lambda:handler(self.no_noise_rb))
         self.ad_noise_rb.toggled.connect(lambda:handler(self.ad_noise_rb))
         self.sp_noise_rb.toggled.connect(lambda:handler(self.sp_noise_rb))
+
+    def add_method_selected_handler(self, handler):
+        self.own_method_rb.toggled.connect(lambda:handler(self.own_method_rb))
+        self.ins_method_rb.toggled.connect(lambda:handler(self.ins_method_rb))
 
     def add_img_cb_handler(self, handler):
         "handler(i)"
